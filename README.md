@@ -59,7 +59,7 @@ This module can be used to select a release from a Github repository, select an 
     repo: go-acme/lego
     asset_regex: lego.*\.tar\.gz
     version_command: lego --version
-    copy_rules:
+    move_rules:
       - src_regex: lego
         dst: /usr/local/bin
         mode: 0755
