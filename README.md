@@ -9,21 +9,6 @@ Download and install assets from Github releases page.
 
 ## Installation
 
-### Install the `quera.github` collection from Ansible Galaxy
-
-To install this collection from Ansible Galaxy, run the following command:
-
-```shell
-ansible-galaxy collection install quera.github
-```
-
-Alternatively, you can include the collection in a `requirements.yml` file and then run `ansible-galaxy collection install -r requirements.yml`. Here is an example of `requirements.yml` file:
-
-```yaml
-collections:
-  - name: quera.github
-```
-
 ### Install the `quera.github` collection from Github
 
 ```shell
