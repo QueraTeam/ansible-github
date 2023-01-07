@@ -127,7 +127,8 @@ def files_have_same_content(path1: str, path2: str):
 
 
 def extract_version(s: str, version_regex: str) -> Union[str, None]:
-    if m := re.search(version_regex, s):
+    m = re.search(version_regex, s)
+    if m:
         return m.group(0)
 
 
@@ -190,9 +191,8 @@ def move_paths(module: AnsibleModule, paths_to_move: dict, validate_only=False) 
     for dest, path_list in paths_to_move.items():
         if os.path.isdir(dest):
             for p in path_list:
-                if os.path.isdir(p) and os.path.exists(
-                    dst_path := os.path.join(dest, os.path.basename(p))
-                ):
+                dst_path = os.path.join(dest, os.path.basename(p))
+                if os.path.isdir(p) and os.path.exists(dst_path):
                     module.fail_json(
                         msg=f"Destination path '{dst_path}' already exists."
                     )
