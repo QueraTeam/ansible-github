@@ -64,4 +64,39 @@ This module can be used to select a release from a Github repository, select an 
         dst: /usr/local/bin
         mode: 0755
 
+- name: install a specific version of sentry-cli
+  quera.github.install_from_github:
+    repo: getsentry/sentry-cli
+    tag: "2.8.1"
+    asset_regex: sentry-cli-.*
+    version_command: sentry-cli --version
+    move_rules:
+      - src_regex: sentry-cli-.*
+        dst: /usr/local/bin/sentry-cli
+        mode: 0755
+
+- name: install both executable and data
+  quera.github.install_from_github:
+    repo: example/example
+    asset_regex: example-.*\.zip
+    asset_arch_mapping:
+      amd64: "64"  # This repo indicates amd64 as example-64.zip instead of example-amd64.zip or example-x86_64.zip.
+    version_command: example --version
+    move_rules:
+      - src_regex: example
+        dst: /usr/local/bin
+        mode: 0755
+      - src_regex: .*\.dat
+        dst: /usr/local/share/example
+        mode: 0644
+
+- name: install some data file (e.g. font, ...)
+  quera.github.install_from_github:
+    repo: example/example
+    asset_regex: exampledata.dat
+    version_file: /usr/local/share/example/exampledata.dat.version
+    move_rules:
+      - src_regex: exampledata.dat
+        dst: /usr/local/share/example
+
 ```
