@@ -448,7 +448,7 @@ def main():
         module, asset["name"], asset["browser_download_url"], move_rules
     )
 
-    if changed and version_file:
+    if version_file:
         with open(version_file, "w") as fp:
             fp.write(release_info["tag_name"])
 
