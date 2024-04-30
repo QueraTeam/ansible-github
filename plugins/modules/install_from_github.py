@@ -270,7 +270,7 @@ def set_mode_owner_group(module: AnsibleModule, path: str, mode, owner, group):
             set_mode_owner_group(module, os.path.join(path, item), mode, owner, group)
 
 
-def download_asset(module: AnsibleModule, file_name: str, url: str, move_rules: dict):
+def download_asset(module: AnsibleModule, file_name: str, url: str, move_rules: List[dict]):
     with tempfile.TemporaryDirectory() as temp_dir:
         file_path = os.path.join(temp_dir, file_name)
         urllib.request.urlretrieve(url, file_path)
