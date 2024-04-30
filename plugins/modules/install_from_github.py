@@ -319,52 +319,75 @@ def download_asset(module: AnsibleModule, file_name: str, url: str, move_rules: 
         return move_paths(module, paths_to_move)
 
 
-def select_asset(
-    module: AnsibleModule, assets: list, asset_regex: str, asset_arch_mapping: dict
-):
-    assets = list(filter(lambda a: asset_regex.fullmatch(a["name"]), assets))
-    if len(assets) == 0:
-        module.fail_json(msg='No asset matched "asset_regex"')
-    if len(assets) == 1:
-        return assets[0]
+class AssetSelector:
+    asset_regex: re.Pattern
+    system: str
+    architectures: List[str]
 
-    # try filtering assets based on system
-    system = platform.system().lower()  # linux, darwin, windows, ...
-    assets = list(filter(lambda asset: system in asset["name"].lower(), assets))
-    if len(assets) == 0:
-        module.fail_json(msg="Couldn't select a unique asset.")
-    if len(assets) == 1:
-        return assets[0]
+    class AssetSelectionFailed(Exception):
+        pass
 
-    # try filtering assets based on architecture
-    machine = platform.machine().lower()
-    architectures = {
-        "x86_64": ["x86_64", "amd64"],
-        "amd64": ["x86_64", "amd64"],
-        "aarch64": ["aarch64", "arm64"],
-        "arm64": ["aarch64", "arm64"],
-    }.get(machine, [machine])
-    if asset_arch_mapping:
-        for arch in architectures:
-            if arch in asset_arch_mapping:
-                architectures = (
-                    asset_arch_mapping[arch]
-                    if type(asset_arch_mapping[arch]) == list
-                    else [asset_arch_mapping[arch]]
-                )
-                break
+    def __init__(self,  asset_regex: re.Pattern, asset_arch_mapping: dict):
+        self.asset_regex = asset_regex
+        self.system = platform.system().lower()  # linux, darwin, windows, ...
+        machine = platform.machine().lower()
+        architectures: List[str] = {
+            "x86_64": ["x86_64", "amd64"],
+            "amd64": ["x86_64", "amd64"],
+            "aarch64": ["aarch64", "arm64"],
+            "arm64": ["aarch64", "arm64"],
+        }.get(machine, [machine])
+        try:
+            arch_mapping_key = list(set(architectures).intersection(asset_arch_mapping.keys()))[0]
+        except IndexError:
+            self.architectures = architectures
+        else:
+            self.architectures = (
+                asset_arch_mapping[arch_mapping_key]
+                if type(asset_arch_mapping[arch_mapping_key]) == list
+                else [asset_arch_mapping[arch_mapping_key]]
+            )
 
-    def matches_architecture(asset: dict):
+    def asset_matches_system(self, asset: dict) -> bool:
+        return self.system in asset["name"].lower()
+
+    def asset_matches_architecture(self, asset: dict) -> bool:
         return any(
-            re.search(rf"(?:^|\W|_){re.escape(arch)}(?:$|\W|_)", asset["name"].lower())
-            for arch in architectures
+            re.search(rf"(?:^|\W|_){re.escape(architecture)}(?:$|\W|_)", asset["name"].lower())
+            for architecture in self.architectures
         )
 
-    assets = list(filter(matches_architecture, assets))
+    def select_asset(
+        self,
+        assets: List[dict]
+    ) -> dict:
+        filtered_assets = [asset for asset in assets if self.asset_regex.fullmatch(asset["name"])]
+        if len(filtered_assets) == 0:
+            raise self.AssetSelectionFailed('No asset matched "asset_regex".')
+        if len(filtered_assets) == 1:
+            return assets[0]
 
-    if len(assets) == 1:
-        return assets[0]
-    module.fail_json(msg="Couldn't select a unique asset.")
+        # try filtering assets based on architecture
+        filtered_assets = [asset for asset in filtered_assets if self.asset_matches_architecture(asset)]
+        if len(filtered_assets) == 0:
+            raise self.AssetSelectionFailed(
+                'More than one asset matched "asset_regex". '
+                f'Tried to filter them based on architecture ({",".join(self.architectures)}), but no asset matched.'
+            )
+        if len(filtered_assets) == 1:
+            return filtered_assets[0]
+
+        # try filtering assets based on system
+        filtered_assets = [asset for asset in filtered_assets if self.asset_matches_system(asset)]
+        if len(filtered_assets) == 0:
+            raise self.AssetSelectionFailed(
+                f'More than one asset matched "asset_regex" and architecture ({",".join(self.architectures)}). '
+                f'Tried to filter them based on system ({self.system}), but no asset matched.'
+            )
+        if len(filtered_assets) == 1:
+            return filtered_assets[0]
+
+        raise self.AssetSelectionFailed(f"Couldn't select a unique asset. Assets matched: {len(filtered_assets)}")
 
 
 def main():
@@ -377,7 +400,7 @@ def main():
             "tag": {"required": False, "type": "str", "default": "latest"},
             # 3. select asset
             "asset_regex": {"required": True, "type": "str"},
-            "asset_arch_mapping": {"required": False, "type": "dict"},
+            "asset_arch_mapping": {"required": False, "type": "dict", "default": {}},
             # 4. (optional) check installed version (to see if download is required)
             "version_command": {"required": False, "type": "str"},
             "version_regex": {"required": False, "type": "str"},
@@ -395,7 +418,7 @@ def main():
 
     repo: str = module.params["repo"]
     tag: str = module.params["tag"]
-    asset_regex = re.compile(module.params["asset_regex"])
+    asset_regex: re.Pattern = re.compile(module.params["asset_regex"])
     asset_arch_mapping: dict = module.params["asset_arch_mapping"]
     version_command: str = module.params["version_command"]
     version_regex = module.params["version_regex"] or r"\d+\.\d+(?:\.\d+)?"
@@ -441,9 +464,11 @@ def main():
     ):
         module.exit_json(changed=False)
 
-    asset = select_asset(
-        module, release_info["assets"], asset_regex, asset_arch_mapping
-    )
+    try:
+        asset = AssetSelector(asset_regex, asset_arch_mapping).select_asset(release_info["assets"])
+    except AssetSelector.AssetSelectionFailed as e:
+        module.fail_json(msg=str(e))
+        return
 
     changed = download_asset(
         module, asset["name"], asset["browser_download_url"], move_rules
