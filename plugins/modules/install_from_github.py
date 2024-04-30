@@ -85,6 +85,7 @@ options:
         version to this file after successful installation.
         This is useful for non-executable assets which don't have any `--version` command
         (e.g. fonts, ...).
+        If you pass `version_file`, you can't pass `version_command` or `version_regex` options.
     required: false
     type: path
 
