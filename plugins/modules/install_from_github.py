@@ -20,7 +20,7 @@ import filecmp
 from collections import defaultdict
 
 
-DOCUMENTATION = """
+DOCUMENTATION = r"""
 module: install_from_github
 short_description: Download and install assets from Github releases page.
 description:
@@ -103,7 +103,7 @@ options:
 
 RETURN = ""
 
-EXAMPLES = """
+EXAMPLES = r"""
 - name: install latest version of lego (ACME client)
   quera.github.install_from_github:
     repo: go-acme/lego
