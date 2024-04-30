@@ -19,7 +19,7 @@ Alternatively, you may manually install the `install_from_github` module itself 
 
 ```shell
 # Create the user custom module directory
-mkdir ~/.ansible/plugins/modules
+mkdir -p ~/.ansible/plugins/modules
 
 # Install the install_from_github module into the user custom module directory
 curl -o ~/.ansible/plugins/modules/install_from_github.py https://raw.githubusercontent.com/QueraTeam/ansible-github/main/plugins/modules/install_from_github.py
@@ -42,13 +42,10 @@ This module can be used to select a release from a Github repository, select an 
 |repo              | Type: `str` <br/>**Required**                  |The name of the repository in the format `user_or_org/repo_name`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 |tag               | Type: `str`  <br/>Default: `latest`            |The tag to select from releases page. The default (`latest`) means the most recent non-prerelease, non-draft release.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 |version_command   | Type: `str`                                    |The command to get the currently installed version. (e.g. `some_command --version`) If the output of this command matches the selected asset, downloading and installing the asset is skipped.                                                                                                                                                                                                                                                                                                                                                                                                   |
-|version_file      | Type: `path`                                   |Path to a file containing the version of currently installed version. The module reads the version from this file instead of `version_command` before installing (to skip download if the desired version is installed) and writes the installed version to this file after successful installation. This is useful for non-executable assets which don't have any `--version` command (e.g. fonts, ...).                                                                                                                                                                                        |
+|version_file      | Type: `path`                                   |Path to a file containing the version of currently installed version. The module reads the version from this file instead of `version_command` before installing (to skip download if the desired version is installed) and writes the installed version to this file after successful installation. This is useful for non-executable assets which don't have any `--version` command (e.g. fonts, ...). If you pass `version_file`, you can't pass `version_command` or `version_regex` options.                                                                                               |
 |version_regex     | Type: `str`  <br/>Default: `\d+\.\d+(?:\.\d+)?`|A regex for extracting version from the output of `version_command` or tag name. The default is to match 2 or 3 numbers joined by `.`. E.g. 1.12.7 or 1.12                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 
-#### Note
-
-- If you pass `version_file`, you can't pass `version_command` or `version_regex` options.
 
 ### Examples
 
