@@ -365,7 +365,7 @@ class AssetSelector:
         if len(filtered_assets) == 0:
             raise self.AssetSelectionFailed('No asset matched "asset_regex".')
         if len(filtered_assets) == 1:
-            return assets[0]
+            return filtered_assets[0]
 
         # try filtering assets based on architecture
         filtered_assets = [asset for asset in filtered_assets if self.asset_matches_architecture(asset)]
