@@ -111,7 +111,16 @@ options:
     type: list
 """
 
-RETURN = ""
+RETURN = r"""
+previous_version:
+  description: The version that was installed before the module ran.
+  type: str
+  sample: "1.0.0"
+installed_version:
+  description: The version that was installed by the module.
+  type: str
+  sample: "2.0.0"
+"""
 
 EXAMPLES = r"""
 - name: install latest version of lego (ACME client)
@@ -177,39 +186,40 @@ def extract_version(s: str, version_regex: str) -> Union[str, None]:
         return m.group(0)
 
 
-def is_download_required(
+def extract_versions(
     module: AnsibleModule,
     version_command: str,
     version_regex: str,
     version_file: str,
     release_info: dict,
 ):
+    release_version = release_info["tag_name"]
     if version_file:
         if not os.path.exists(version_file):
-            return True
+            return None, release_version
         with open(version_file, "r") as fp:
             version_file_content = fp.read().strip()
-        return version_file_content != release_info["tag_name"]
+        return version_file_content, release_version
     if not version_command:
-        return True
+        return None, release_version
     try:
         rc, result_stdout, _ = module.run_command(
             version_command, handle_exceptions=False
         )
     except (OSError, IOError):
-        return True
+        return None, release_version
     else:
         version_installed = extract_version(result_stdout.strip(), version_regex)
         if not version_installed:
             module.fail_json(
                 msg='The output of "version_command" did not contain a version.',
             )
-        version_to_install = extract_version(release_info["tag_name"], version_regex)
+        version_to_install = extract_version(release_version, version_regex)
         if not version_to_install:
             module.fail_json(
                 msg="The tag name of Github release does not contain a version.",
             )
-        return version_installed != version_to_install
+        return version_installed, version_to_install
 
 
 def decompress_file(path: str):
@@ -469,11 +479,20 @@ def main():
         release_info_url = f"/repos/{repo}/releases/tags/{tag}"
 
     release_info = get_json_url(f"https://api.github.com{release_info_url}")
-
-    if not is_download_required(
+    
+    current_version, desired_version = extract_versions(
         module, version_command, version_regex, version_file, release_info
-    ):
-        module.exit_json(changed=False)
+    )
+    
+    # Use naming that makes more sense after the module has ran 
+    # as we're always going to install `desired_version` by the time we exit
+    result = {
+        "previous_version": current_version,
+        "installed_version": desired_version,
+    }
+
+    if current_version == desired_version:
+        module.exit_json(changed=False, **result)
 
     try:
         asset = AssetSelector(asset_regex, asset_arch_mapping).select_asset(release_info["assets"])
@@ -491,9 +510,9 @@ def main():
 
     if version_file:
         with open(version_file, "w") as fp:
-            fp.write(release_info["tag_name"])
+            fp.write(desired_version)
 
-    module.exit_json(changed=changed)
+    module.exit_json(changed=changed, **result)
 
 
 if __name__ == "__main__":
