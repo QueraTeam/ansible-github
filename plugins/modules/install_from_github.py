@@ -452,7 +452,7 @@ def main():
                 module.fail_json(
                     msg=f"Some move rule does not have required argument '{k}'."
                 )
-            if k in move_rules and not any(
+            if k in move_rule and not any(
                 isinstance(move_rule[k], allowed_type)
                 for allowed_type in schema.get("allowed_types", [object])
             ):
